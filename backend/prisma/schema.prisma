@@ -1,0 +1,157 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [vector]
+}
+
+model User {
+  id            String          @id @default(uuid())
+  email         String          @unique
+  name          String
+  role          Role            @default(SCOUT)
+  passwordHash  String?
+  googleId      String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  scoutReports  ScoutReport[]
+  savedPlayers  SavedPlayer[]
+  searchHistory SearchHistory[]
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  SCOUT
+  ANALYST
+}
+
+model Player {
+  id              String            @id @default(uuid())
+  name            String
+  club            String
+  league          String
+  position        String
+  nationality     String
+  age             Int
+  overallRating   Int
+  potential       Int
+  marketValue     Float             // Assuming Crores (e.g., 2.5 Cr) for Indian Context
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  statistics      PlayerStatistic[]
+  predictions     Prediction[]
+  reports         ScoutReport[]
+  savedBy         SavedPlayer[]
+  embeddings      Embedding[]
+}
+
+model Team {
+  id        String   @id @default(uuid())
+  name      String   // E.g., Mumbai City FC, Mohun Bagan SG
+  league    String   // ISL, I-League
+  country   String   @default("India")
+  createdAt DateTime @default(now())
+}
+
+model Match {
+  id            String            @id @default(uuid())
+  homeTeamId    String
+  awayTeamId    String
+  date          DateTime
+  scoreHome     Int
+  scoreAway     Int
+  statistics    PlayerStatistic[]
+}
+
+model PlayerStatistic {
+  id                String   @id @default(uuid())
+  player            Player   @relation(fields: [playerId], references: [id])
+  playerId          String
+  match             Match    @relation(fields: [matchId], references: [id])
+  matchId           String
+  goals             Int      @default(0)
+  assists           Int      @default(0)
+  minutesPlayed     Int      @default(0)
+  passingAccuracy   Float    @default(0.0)
+  expectedGoals     Float    @default(0.0)
+  expectedAssists   Float    @default(0.0)
+  possessionMetrics Float    @default(0.0)
+  progressivePasses Int      @default(0)
+}
+
+model Prediction {
+  id                   String   @id @default(uuid())
+  player               Player   @relation(fields: [playerId], references: [id])
+  playerId             String
+  futureRating         Float
+  predictedMarketValue Float    // In Crores
+  injuryRisk           String   // Low, Medium, High
+  performanceTrend     String
+  potentialGrowth      Float
+  confidenceScore      Float
+  createdAt            DateTime @default(now())
+}
+
+model ScoutReport {
+  id                     String   @id @default(uuid())
+  player                 Player   @relation(fields: [playerId], references: [id])
+  playerId               String
+  author                 User     @relation(fields: [authorId], references: [id])
+  authorId               String
+  content                String   @db.Text
+  playingStyle           String   @db.Text
+  strengths              String   @db.Text
+  weaknesses             String   @db.Text
+  roleSuitability        String
+  improvementAreas       String   @db.Text
+  developmentPotential   String
+  transferRecommendation String
+  pdfUrl                 String?
+  createdAt              DateTime @default(now())
+}
+
+model SavedPlayer {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  player    Player   @relation(fields: [playerId], references: [id])
+  playerId  String
+  savedAt   DateTime @default(now())
+
+  @@unique([userId, playerId])
+}
+
+model SearchHistory {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  query      String
+  filters    Json?
+  searchedAt DateTime @default(now())
+}
+
+model Document {
+  id        String   @id @default(uuid())
+  title     String
+  content   String   @db.Text
+  type      DocType
+  createdAt DateTime @default(now())
+}
+
+enum DocType {
+  MATCH_REPORT
+  SCOUT_DOCUMENT
+}
+
+model Embedding {
+  id              String   @id @default(uuid())
+  player          Player   @relation(fields: [playerId], references: [id])
+  playerId        String
+  embeddingVector Unsupported("vector(768)") // Assuming 768 dims for standard embeddings
+  createdAt       DateTime @default(now())
+}
